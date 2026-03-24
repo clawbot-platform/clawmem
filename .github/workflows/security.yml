@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: security
 
 on:
@@ -7,25 +8,42 @@ on:
 jobs:
   scan:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: install go tools
+          cache: true
+
+      - name: Install Go tools
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
           go install golang.org/x/vuln/cmd/govulncheck@latest
-      - name: gosec
-        run: "$(go env GOPATH)"/bin/gosec ./...
-      - name: govulncheck
-        run: "$(go env GOPATH)"/bin/govulncheck ./...
-      - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-      - name: trivy fs
-        uses: aquasecurity/trivy-action@0.24.0
+          go install github.com/zricethezav/gitleaks/v8@latest
+
+      - name: Run gosec
+        run: |
+          "$(go env GOPATH)/bin/gosec" ./...
+
+      - name: Run govulncheck
+        run: |
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+      - name: Run Gitleaks CLI
+        run: |
+          "$(go env GOPATH)/bin/gitleaks" git . --verbose --redact
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: fs
           scan-ref: .
           format: table
-          exit-code: 1
+          exit-code: '1'
+          severity: HIGH,CRITICAL
