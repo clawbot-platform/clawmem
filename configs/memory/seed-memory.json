@@ -1,0 +1,40 @@
+{
+  "memories": [
+    {
+      "id": "mem-seed-replay-001",
+      "memory_type": "replay_case",
+      "scope": "scenario",
+      "scenario_id": "starter-mandate-review",
+      "source_id": "replay-case-001",
+      "summary": "Baseline replay outcome for the starter mandate review scenario.",
+      "metadata": {
+        "benchmark_round_ref": "bench-seed-001",
+        "outcome": "baseline_match"
+      },
+      "tags": [
+        "seed",
+        "replay"
+      ],
+      "created_at": "2026-03-24T00:00:00Z",
+      "updated_at": "2026-03-24T00:00:00Z"
+    },
+    {
+      "id": "mem-seed-trust-001",
+      "memory_type": "trust_artifact",
+      "scope": "trust_lab",
+      "scenario_id": "starter-mandate-review",
+      "source_id": "trust-artifact-001",
+      "summary": "Seed trust artifact summary for local clawmem validation.",
+      "metadata": {
+        "artifact_family": "mandate",
+        "artifact_type": "mandate_artifact"
+      },
+      "tags": [
+        "seed",
+        "trust"
+      ],
+      "created_at": "2026-03-24T00:05:00Z",
+      "updated_at": "2026-03-24T00:05:00Z"
+    }
+  ]
+}

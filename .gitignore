@@ -1,0 +1,6 @@
+.env
+.DS_Store
+/var/
+/dist/
+/coverage.out
+/coverage.html
