@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"clawmem/internal/domain/memory"
 	"clawmem/internal/domain/trust"
@@ -15,13 +16,22 @@ type Service struct {
 }
 
 type StoreInput struct {
-	ScenarioID     string         `json:"scenario_id"`
-	SourceID       string         `json:"source_id"`
-	Summary        string         `json:"summary"`
-	ArtifactFamily string         `json:"artifact_family"`
-	ArtifactType   string         `json:"artifact_type"`
-	Metadata       map[string]any `json:"metadata"`
-	Tags           []string       `json:"tags"`
+	ProjectID       string                 `json:"project_id,omitempty"`
+	Environment     string                 `json:"environment,omitempty"`
+	ClawbotID       string                 `json:"clawbot_id,omitempty"`
+	SessionID       string                 `json:"session_id,omitempty"`
+	ScenarioID      string                 `json:"scenario_id"`
+	SourceID        string                 `json:"source_id,omitempty"`
+	SourceRef       string                 `json:"source_ref,omitempty"`
+	Summary         string                 `json:"summary"`
+	ArtifactFamily  string                 `json:"artifact_family"`
+	ArtifactType    string                 `json:"artifact_type"`
+	Importance      int                    `json:"importance,omitempty"`
+	Pinned          bool                   `json:"pinned,omitempty"`
+	RetentionPolicy memory.RetentionPolicy `json:"retention_policy,omitempty"`
+	ExpiresAt       *time.Time             `json:"expires_at,omitempty"`
+	Metadata        map[string]any         `json:"metadata"`
+	Tags            []string               `json:"tags"`
 }
 
 func NewService(memory *memoryservice.Service) *Service {
@@ -29,8 +39,8 @@ func NewService(memory *memoryservice.Service) *Service {
 }
 
 func (s *Service) Store(ctx context.Context, input StoreInput) (trust.TrustMemoryRecord, error) {
-	if strings.TrimSpace(input.SourceID) == "" {
-		return trust.TrustMemoryRecord{}, errors.New("source_id is required")
+	if strings.TrimSpace(input.SourceRef) == "" && strings.TrimSpace(input.SourceID) == "" {
+		return trust.TrustMemoryRecord{}, errors.New("source_ref is required")
 	}
 	if strings.TrimSpace(input.Summary) == "" {
 		return trust.TrustMemoryRecord{}, errors.New("summary is required")
@@ -47,13 +57,22 @@ func (s *Service) Store(ctx context.Context, input StoreInput) (trust.TrustMemor
 	metadata["artifact_type"] = input.ArtifactType
 
 	record, err := s.memory.Create(ctx, memoryservice.CreateInput{
-		MemoryType: memory.MemoryTypeTrustArtifact,
-		Scope:      memory.MemoryScopeTrust,
-		ScenarioID: input.ScenarioID,
-		SourceID:   input.SourceID,
-		Summary:    input.Summary,
-		Metadata:   metadata,
-		Tags:       input.Tags,
+		ProjectID:       input.ProjectID,
+		Environment:     input.Environment,
+		ClawbotID:       input.ClawbotID,
+		SessionID:       input.SessionID,
+		MemoryType:      memory.MemoryTypeTrustArtifact,
+		Scope:           memory.MemoryScopeTrust,
+		ScenarioID:      input.ScenarioID,
+		SourceID:        input.SourceID,
+		SourceRef:       input.SourceRef,
+		Summary:         input.Summary,
+		Importance:      input.Importance,
+		Pinned:          input.Pinned,
+		RetentionPolicy: input.RetentionPolicy,
+		ExpiresAt:       input.ExpiresAt,
+		Metadata:        metadata,
+		Tags:            input.Tags,
 	})
 	if err != nil {
 		return trust.TrustMemoryRecord{}, err

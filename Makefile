@@ -1,12 +1,19 @@
 SHELL := /bin/zsh
 
 COVERAGE_FILE := coverage.out
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS := -X 'clawmem/internal/version.Version=$(VERSION)' \
+           -X 'clawmem/internal/version.Commit=$(COMMIT)' \
+           -X 'clawmem/internal/version.Date=$(BUILD_DATE)'
 
-.PHONY: help run test lint vet coverage coverage-html security
+.PHONY: help run build test lint vet coverage coverage-html security
 
 help:
 	@printf "Targets:\n"
-	@printf "  make run       Start clawmem locally\n"
+	@printf "  make run       Start clawmem locally with build metadata\n"
+	@printf "  make build     Build clawmem binary with build metadata\n"
 	@printf "  make test      Run unit tests\n"
 	@printf "  make lint      Run formatting check, vet, and golangci-lint\n"
 	@printf "  make vet       Run go vet\n"
@@ -14,7 +21,11 @@ help:
 	@printf "  make security  Run gosec and govulncheck when installed\n"
 
 run:
-	go run ./cmd/clawmem
+	go run -ldflags "$(LDFLAGS)" ./cmd/clawmem
+
+build:
+	mkdir -p bin
+	go build -ldflags "$(LDFLAGS)" -o bin/clawmem ./cmd/clawmem
 
 test:
 	go test ./...

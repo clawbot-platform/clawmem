@@ -43,6 +43,9 @@ func TestBuildSeedsStoreWhenEnabledAndEmpty(t *testing.T) {
 	if err := deps.ReadyFn(context.Background()); err != nil {
 		t.Fatalf("ReadyFn() error = %v", err)
 	}
+	if deps.Ops == nil {
+		t.Fatal("expected ops service dependency")
+	}
 }
 
 func TestBuildDoesNotReseedExistingStore(t *testing.T) {

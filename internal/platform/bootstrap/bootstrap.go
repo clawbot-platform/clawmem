@@ -11,6 +11,7 @@ import (
 	"clawmem/internal/domain/memory"
 	"clawmem/internal/platform/store"
 	memoryservice "clawmem/internal/services/memory"
+	opsservice "clawmem/internal/services/ops"
 	replayservice "clawmem/internal/services/replay"
 	trustservice "clawmem/internal/services/trust"
 )
@@ -18,6 +19,7 @@ import (
 type Dependencies struct {
 	Store   *store.FileStore
 	Memory  *memoryservice.Service
+	Ops     *opsservice.Service
 	Replay  *replayservice.Service
 	Trust   *trustservice.Service
 	ReadyFn func(context.Context) error
@@ -34,6 +36,7 @@ func Build(ctx context.Context, cfg config.Config, logger *slog.Logger) (Depende
 	}
 
 	memorySvc := memoryservice.NewService(fileStore)
+	opsSvc := opsservice.NewService(memorySvc)
 	replaySvc := replayservice.NewService(memorySvc)
 	trustSvc := trustservice.NewService(memorySvc)
 
@@ -44,6 +47,7 @@ func Build(ctx context.Context, cfg config.Config, logger *slog.Logger) (Depende
 	return Dependencies{
 		Store:  fileStore,
 		Memory: memorySvc,
+		Ops:    opsSvc,
 		Replay: replaySvc,
 		Trust:  trustSvc,
 		ReadyFn: func(ctx context.Context) error {
