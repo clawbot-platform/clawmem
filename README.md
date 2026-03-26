@@ -3,8 +3,7 @@
 [![ci](https://github.com/clawbot-platform/clawmem/actions/workflows/ci.yml/badge.svg)](https://github.com/clawbot-platform/clawmem/actions/workflows/ci.yml)
 [![quality](https://github.com/clawbot-platform/clawmem/actions/workflows/quality.yml/badge.svg)](https://github.com/clawbot-platform/clawmem/actions/workflows/quality.yml)
 [![security](https://github.com/clawbot-platform/clawmem/actions/workflows/security.yml/badge.svg)](https://github.com/clawbot-platform/clawmem/actions/workflows/security.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=clawbot-platform_clawmem&metric=alert_status)](https://sonarcloud.io/project/overview?id=clawbot-platform_clawmem)
-
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=clawbot-platform_clawmem&metric=alert_status&token=ff78811bf0a5d9143faaf73c09ad9aeceaad9efc)](https://sonarcloud.io/summary/new_code?id=clawbot-platform_clawmem)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go)
 ![JSON Store](https://img.shields.io/badge/Storage-File--backed_JSON-5A67D8)
 ![HTTP API](https://img.shields.io/badge/API-HTTP-0A66C2)
