@@ -4,9 +4,9 @@
       "id": "mem-seed-replay-001",
       "memory_type": "replay_case",
       "scope": "scenario",
-      "scenario_id": "starter-mandate-review",
+      "scenario_id": "sample-order-review",
       "source_id": "replay-case-001",
-      "summary": "Baseline replay outcome for the starter mandate review scenario.",
+      "summary": "Baseline replay outcome for the sample order review flow.",
       "metadata": {
         "benchmark_round_ref": "bench-seed-001",
         "outcome": "baseline_match"
@@ -21,8 +21,8 @@
     {
       "id": "mem-seed-trust-001",
       "memory_type": "trust_artifact",
-      "scope": "trust_lab",
-      "scenario_id": "starter-mandate-review",
+      "scope": "trust",
+      "scenario_id": "sample-order-review",
       "source_id": "trust-artifact-001",
       "summary": "Seed trust artifact summary for local clawmem validation.",
       "metadata": {

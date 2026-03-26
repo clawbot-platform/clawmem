@@ -21,6 +21,6 @@ Phase 4 is the first phase where `clawmem` becomes a real service instead of a p
 
 ## Why This Phase Matters
 
-Phase 3 in `clawbot-trust-lab` established client abstractions and replay/archive concepts. Phase 4 makes those abstractions target a concrete service without prematurely committing to advanced retrieval architecture.
+One downstream example, `clawbot-trust-lab`, established client abstractions and replay/archive concepts before this service existed. Phase 4 makes those abstractions target a concrete service without prematurely committing to advanced retrieval architecture.
 
 The result is enough to replace stubs with actual HTTP-backed memory operations while keeping the implementation small and explainable.

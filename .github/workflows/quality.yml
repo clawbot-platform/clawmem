@@ -3,24 +3,60 @@ name: quality
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 jobs:
-  golangci:
+  quality:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
+      - name: Check formatting
+        run: test -z "$(find cmd internal -name '*.go' -print | xargs gofmt -l)"
+
+      - name: Go vet
+        run: go vet ./...
+
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: v2.11
-          args: --timeout=3m
+          version: latest
+          args: ./...
+
+      - name: Test with coverage
+        run: go test -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: SonarCloud scan
+        if: ${{ secrets.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+      - name: SonarCloud quality gate
+        if: ${{ secrets.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 10
+        with:
+          pollingTimeoutSec: 600
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+      - name: Skip Sonar when token is unavailable
+        if: ${{ secrets.SONAR_TOKEN == '' }}
+        run: echo "Skipping SonarCloud because SONAR_TOKEN is not available for this run."

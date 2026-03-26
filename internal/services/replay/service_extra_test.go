@@ -8,7 +8,7 @@ import (
 	memoryservice "clawmem/internal/services/memory"
 )
 
-func TestStoreReplaySummary(t *testing.T) {
+func TestListReplaySummaries(t *testing.T) {
 	t.Parallel()
 
 	fileStore, err := store.NewFileStore(t.TempDir())
@@ -17,16 +17,19 @@ func TestStoreReplaySummary(t *testing.T) {
 	}
 
 	service := NewService(memoryservice.NewService(fileStore))
-	record, err := service.Store(context.Background(), StoreInput{
+	if _, err := service.Store(context.Background(), StoreInput{
 		ScenarioID: "sample-order-review",
 		SourceID:   "replay-case-001",
 		Summary:    "Replay remained stable.",
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
 
-	if record.Record.MemoryType != "replay_case" {
-		t.Fatalf("expected replay_case memory type, got %q", record.Record.MemoryType)
+	records, err := service.List(context.Background(), "sample-order-review")
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(records) != 1 || records[0].OutcomeSummary == "" {
+		t.Fatalf("unexpected replay records %#v", records)
 	}
 }

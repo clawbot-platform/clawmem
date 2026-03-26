@@ -19,8 +19,8 @@ func TestFileStoreCreateListGet(t *testing.T) {
 	record := memory.MemoryRecord{
 		ID:         "mem-test-001",
 		MemoryType: memory.MemoryTypeTrustArtifact,
-		Scope:      memory.MemoryScopeTrustLab,
-		ScenarioID: "starter-mandate-review",
+		Scope:      memory.MemoryScopeTrust,
+		ScenarioID: "sample-order-review",
 		SourceID:   "trust-artifact-001",
 		Summary:    "Stored trust artifact summary.",
 		Metadata:   map[string]any{"artifact_family": "mandate"},
@@ -43,12 +43,20 @@ func TestFileStoreCreateListGet(t *testing.T) {
 
 	result, err := fileStore.List(context.Background(), memory.MemoryQuery{
 		MemoryType: memory.MemoryTypeTrustArtifact,
-		ScenarioID: "starter-mandate-review",
+		ScenarioID: "sample-order-review",
 	})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
 	if result.Total != 1 {
 		t.Fatalf("expected total 1, got %d", result.Total)
+	}
+
+	count, err := fileStore.Count(context.Background())
+	if err != nil {
+		t.Fatalf("Count() error = %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected count 1, got %d", count)
 	}
 }

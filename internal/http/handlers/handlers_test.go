@@ -35,10 +35,10 @@ func TestCreateAndGetMemory(t *testing.T) {
 	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/memories", strings.NewReader(`{
 		"memory_type":"scenario_summary",
 		"scope":"platform",
-		"scenario_id":"starter-mandate-review",
-		"source_id":"scenario-pack-001",
+		"scenario_id":"sample-order-review",
+		"source_id":"sample-pack-001",
 		"summary":"Scenario summary memory.",
-		"metadata":{"pack_id":"starter-pack"},
+		"metadata":{"pack_id":"sample-pack"},
 		"tags":["scenario"]
 	}`))
 	createReq.Header.Set("Content-Type", "application/json")
@@ -84,7 +84,7 @@ func TestCreateTrust(t *testing.T) {
 	router := newRouter(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/trust", strings.NewReader(`{
-		"scenario_id":"starter-mandate-review",
+		"scenario_id":"sample-order-review",
 		"source_id":"trust-artifact-002",
 		"summary":"Trust summary.",
 		"artifact_family":"mandate",

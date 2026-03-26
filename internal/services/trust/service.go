@@ -48,7 +48,7 @@ func (s *Service) Store(ctx context.Context, input StoreInput) (trust.TrustMemor
 
 	record, err := s.memory.Create(ctx, memoryservice.CreateInput{
 		MemoryType: memory.MemoryTypeTrustArtifact,
-		Scope:      memory.MemoryScopeTrustLab,
+		Scope:      memory.MemoryScopeTrust,
 		ScenarioID: input.ScenarioID,
 		SourceID:   input.SourceID,
 		Summary:    input.Summary,

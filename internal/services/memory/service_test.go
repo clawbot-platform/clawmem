@@ -24,10 +24,10 @@ func TestServiceCreateAndGet(t *testing.T) {
 	record, err := service.Create(context.Background(), CreateInput{
 		MemoryType: domain.MemoryTypeScenario,
 		Scope:      domain.MemoryScopePlatform,
-		ScenarioID: "starter-mandate-review",
-		SourceID:   "scenario-pack-001",
+		ScenarioID: "sample-order-review",
+		SourceID:   "sample-pack-001",
 		Summary:    "Scenario summary memory.",
-		Metadata:   map[string]any{"pack_id": "starter-pack"},
+		Metadata:   map[string]any{"pack_id": "sample-pack"},
 		Tags:       []string{"scenario"},
 	})
 	if err != nil {

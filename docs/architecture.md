@@ -7,14 +7,15 @@
 - persist generic memory records
 - persist replay-case summaries
 - persist trust-artifact summaries
-- expose a stable API for future callers, especially `clawbot-trust-lab`
+- expose a stable API for any downstream caller that needs lightweight memory or replay history
 
 ## Boundaries
 
-`clawmem` does not own control-plane APIs, benchmark orchestration, trust-lab scenario execution, or ZeroClaw behavior.
+`clawmem` does not own control-plane APIs, benchmark orchestration, scenario execution, or ZeroClaw behavior.
 
 - `clawbot-server` owns the platform foundation and control plane
-- `clawbot-trust-lab` owns trust-lab workflows and will call this service
+- downstream applications own their own workflows and can call this service as a reusable dependency
+- `clawbot-trust-lab` is one example consumer, not a required dependency
 
 ## Runtime Shape
 

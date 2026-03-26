@@ -19,7 +19,7 @@ type MemoryScope string
 
 const (
 	MemoryScopeScenario  MemoryScope = "scenario"
-	MemoryScopeTrustLab  MemoryScope = "trust_lab"
+	MemoryScopeTrust     MemoryScope = "trust"
 	MemoryScopeBenchmark MemoryScope = "benchmark"
 	MemoryScopePlatform  MemoryScope = "platform"
 )

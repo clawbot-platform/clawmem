@@ -44,13 +44,13 @@ Example body:
 {
   "memory_type": "scenario_summary",
   "scope": "platform",
-  "scenario_id": "starter-mandate-review",
-  "source_id": "scenario-pack-001",
-  "summary": "Starter scenario summary memory.",
+  "scenario_id": "sample-order-review",
+  "source_id": "sample-pack-001",
+  "summary": "Sample order review memory summary.",
   "metadata": {
-    "pack_id": "starter-pack"
+    "pack_id": "sample-pack"
   },
-  "tags": ["scenario", "starter"]
+  "tags": ["scenario", "sample"]
 }
 ```
 
@@ -72,7 +72,7 @@ Example body:
 
 ```json
 {
-  "scenario_id": "starter-mandate-review",
+  "scenario_id": "sample-order-review",
   "source_id": "replay-case-002",
   "summary": "Replay outcome remained stable during local validation.",
   "metadata": {
@@ -96,7 +96,7 @@ Example body:
 
 ```json
 {
-  "scenario_id": "starter-mandate-review",
+  "scenario_id": "sample-order-review",
   "source_id": "trust-artifact-002",
   "summary": "Mandate artifact remained internally consistent.",
   "artifact_family": "mandate",
@@ -107,3 +107,5 @@ Example body:
   "tags": ["trust", "phase-4"]
 }
 ```
+
+Examples in this document are illustrative only. The API is intentionally generic and can be reused by projects beyond Trust Lab or DRQ-style workflows.
