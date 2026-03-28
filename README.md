@@ -14,6 +14,31 @@
 
 It is part of the broader `clawbot-platform` organization, but it is not tied to any single downstream project or evaluation effort.
 
+## GHCR images
+
+`clawmem` images are published to GHCR from GitHub Actions, not from developer workstations.
+
+- image: `ghcr.io/clawbot-platform/clawmem`
+- immutable tag pattern: `sha-<12-char-sha>`
+- operational tag examples:
+  - `drq-v1-baseline-20260329`
+  - `drq-v1-tuned-20260401`
+
+Runtime hosts should pull published images instead of building locally. They do not need Go, npm, or other development tooling just to deploy `clawmem`.
+
+Publish from GitHub Actions with the `publish-image` workflow and a `release_tag` input such as:
+
+- `drq-v1-baseline-20260329`
+- `drq-v1-tuned-20260401`
+
+If an older manually pushed GHCR package already exists and is not linked to this repository, fix that first:
+
+- connect the package to the repository, or
+- delete the stale package and republish from Actions, or
+- publish once to a temporary image name if cleanup has to be staged
+
+Avoid PAT-based publishing workarounds. The publish workflow uses the repository `GITHUB_TOKEN`.
+
 Current stage:
 
 - V2 is implemented now: operator-visible memory summaries, deterministic lifecycle fields, and maintenance job controls are live
