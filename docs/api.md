@@ -6,11 +6,12 @@ Base URL examples assume:
 http://127.0.0.1:8088
 ```
 
-The current API surface reflects `clawmem` V2:
+The current API surface reflects `clawmem` V2 plus scoped-memory support for control-plane run and cycle execution:
 
 - V1 generic memory, replay, and trust storage endpoints remain the foundation
 - V2 adds lifecycle-aware fields plus ops endpoints for namespace or Clawbot summaries and maintenance job visibility
-- V3 is not implemented yet; benchmarked lifecycle reporting and broader operator visibility remain planned
+- scoped-memory endpoints add compact carry-forward context assembly, namespace-scoped writes, snapshot management, and run exports
+- broader V3 benchmark reporting remains planned
 
 For conceptual semantics behind these endpoints, see [`memory_model.md`](./memory_model.md) and [`operations.md`](./operations.md).
 
@@ -188,6 +189,134 @@ Reading a record also updates recall-related lifecycle fields:
 - `recall_count`
 - `last_accessed_at`
 - `stability_score`
+
+## Scoped memory endpoints (control-plane integration)
+
+These endpoints support `repo -> run -> cycle -> agent` memory scoping for run types such as `replay_run`, `agent_run`, and `week_run`.
+
+`clawmem` scoped memory is contextual continuity storage. It is not the authoritative replay truth for final scored outputs.
+
+### Scope namespace
+
+Request payloads use:
+
+- `repo_namespace`
+- `run_namespace`
+- `cycle_namespace` (optional)
+- `agent_namespace` (optional)
+
+### Memory classes and status model
+
+Common classes:
+
+- `prior_cycle_summaries`
+- `carry_forward_risks`
+- `unresolved_gaps`
+- `backlog_items`
+- `reviewer_notes`
+- `working_context`
+- `memory_snapshot_reference`
+
+Status values:
+
+- `open`
+- `resolved`
+- `superseded`
+- `archived`
+
+### `POST /api/v1/scoped-memory/context`
+
+Returns one compact object for pre-cycle execution context:
+
+- `prior_cycle_summaries`
+- `carry_forward_risks`
+- `unresolved_gaps`
+- `backlog_items`
+- `reviewer_notes`
+
+Example:
+
+```bash
+curl -X POST http://127.0.0.1:8088/api/v1/scoped-memory/context \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "namespace": {
+      "repo_namespace":"ach-trust-lab",
+      "run_namespace":"weekrun-2026-06-demo",
+      "cycle_namespace":"day-4",
+      "agent_namespace":"policy-tuning"
+    }
+  }'
+```
+
+### `POST /api/v1/scoped-memory/notes`
+
+Persists scoped notes, summaries, risks, gaps, backlog, reviewer notes, and creates a snapshot reference when writes occur.
+
+Minimal control-plane-compatible fields:
+
+- `input.note`
+- `input.prior_cycle_summaries`
+- `input.carry_forward_risks`
+- `input.unresolved_gaps`
+- `input.backlog_items`
+- `input.reviewer_notes`
+
+Additional supported fields:
+
+- `input.resolve_unresolved_gaps`
+- `input.resolved_gap_ids`
+- `input.resolved_risk_ids`
+- `input.resolved_backlog_item_ids`
+- `input.resolved_reviewer_note_ids`
+- `input.snapshot_summary`
+- `input.snapshot_manifest_ref`
+- `input.metadata_json`
+- `input.provenance`
+- `input.created_by`
+
+Response includes `data.snapshot_ref`.
+
+### `POST /api/v1/scoped-memory/snapshots`
+
+Creates an explicit snapshot checkpoint:
+
+- `namespace`
+- `summary`
+- `record_refs` (optional, inferred from query when omitted)
+- `query_criteria` (optional)
+- `manifest_ref` (optional)
+
+### `GET /api/v1/scoped-memory/snapshots/{snapshot_id}`
+
+Returns snapshot metadata.
+
+Use `include_records=true` to return an export view with snapshot + included records.
+
+### `GET /api/v1/scoped-memory/query`
+
+Generic query/list endpoint.
+
+Record query params:
+
+- `repo_namespace`
+- `run_namespace`
+- `cycle_namespace`
+- `agent_namespace`
+- `memory_class`
+- `status`
+- `limit`
+- `offset`
+
+Snapshot listing:
+
+- add `kind=snapshots`
+
+Run export bundle:
+
+- add `export=run`
+- requires at least `repo_namespace` and `run_namespace`
+- returns records, snapshots, class/status counts, and manifest metadata
 
 ## Replay endpoints
 

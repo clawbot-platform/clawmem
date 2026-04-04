@@ -13,6 +13,7 @@ import (
 	memoryservice "clawmem/internal/services/memory"
 	opsservice "clawmem/internal/services/ops"
 	replayservice "clawmem/internal/services/replay"
+	scopedservice "clawmem/internal/services/scopedmemory"
 	trustservice "clawmem/internal/services/trust"
 )
 
@@ -25,6 +26,7 @@ func TestRouterServesSystemAndMemoryEndpoints(t *testing.T) {
 	}
 
 	memorySvc := memoryservice.NewService(fileStore)
+	scopedSvc := scopedservice.NewService(fileStore)
 	opsSvc := opsservice.NewService(memorySvc)
 	replaySvc := replayservice.NewService(memorySvc)
 	trustSvc := trustservice.NewService(memorySvc)
@@ -33,12 +35,13 @@ func TestRouterServesSystemAndMemoryEndpoints(t *testing.T) {
 		return err
 	})
 	memoryHandler := handlers.NewMemoryHandler(memorySvc, replaySvc, trustSvc)
+	scopedHandler := handlers.NewScopedMemoryHandler(scopedSvc)
 	opsHandler := handlers.NewOpsHandler(opsSvc)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	router := New(systemHandler, memoryHandler, opsHandler, logger)
+	router := New(systemHandler, memoryHandler, scopedHandler, opsHandler, logger)
 
-	for _, path := range []string{"/healthz", "/readyz", "/version", "/metrics", "/api/v1/memories", "/api/v1/ops/namespaces", "/api/v1/ops/clawbots", "/api/v1/ops/maintenance"} {
+	for _, path := range []string{"/healthz", "/readyz", "/version", "/metrics", "/api/v1/memories", "/api/v1/scoped-memory/query", "/api/v1/ops/namespaces", "/api/v1/ops/clawbots", "/api/v1/ops/maintenance"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)

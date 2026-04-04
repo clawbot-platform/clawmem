@@ -15,6 +15,7 @@ import (
 	memoryservice "clawmem/internal/services/memory"
 	opsservice "clawmem/internal/services/ops"
 	replayservice "clawmem/internal/services/replay"
+	scopedservice "clawmem/internal/services/scopedmemory"
 	trustservice "clawmem/internal/services/trust"
 )
 
@@ -280,6 +281,7 @@ func newRouter(t *testing.T) http.Handler {
 	}
 
 	memorySvc := memoryservice.NewService(fileStore)
+	scopedSvc := scopedservice.NewService(fileStore)
 	opsSvc := opsservice.NewService(memorySvc)
 	replaySvc := replayservice.NewService(memorySvc)
 	trustSvc := trustservice.NewService(memorySvc)
@@ -289,8 +291,9 @@ func newRouter(t *testing.T) http.Handler {
 		return err
 	})
 	memoryHandler := handlers.NewMemoryHandler(memorySvc, replaySvc, trustSvc)
+	scopedHandler := handlers.NewScopedMemoryHandler(scopedSvc)
 	opsHandler := handlers.NewOpsHandler(opsSvc)
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
-	return routes.New(systemHandler, memoryHandler, opsHandler, logger)
+	return routes.New(systemHandler, memoryHandler, scopedHandler, opsHandler, logger)
 }

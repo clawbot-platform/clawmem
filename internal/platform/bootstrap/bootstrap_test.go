@@ -46,6 +46,9 @@ func TestBuildSeedsStoreWhenEnabledAndEmpty(t *testing.T) {
 	if deps.Ops == nil {
 		t.Fatal("expected ops service dependency")
 	}
+	if deps.Scoped == nil {
+		t.Fatal("expected scoped memory service dependency")
+	}
 }
 
 func TestBuildDoesNotReseedExistingStore(t *testing.T) {

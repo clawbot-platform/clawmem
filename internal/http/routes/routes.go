@@ -8,7 +8,7 @@ import (
 	"clawmem/internal/http/middleware"
 )
 
-func New(system *handlers.SystemHandler, memory *handlers.MemoryHandler, ops *handlers.OpsHandler, logger *slog.Logger) http.Handler {
+func New(system *handlers.SystemHandler, memory *handlers.MemoryHandler, scoped *handlers.ScopedMemoryHandler, ops *handlers.OpsHandler, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", system.Healthz)
@@ -26,6 +26,12 @@ func New(system *handlers.SystemHandler, memory *handlers.MemoryHandler, ops *ha
 
 	mux.HandleFunc("GET /api/v1/trust", memory.ListTrust)
 	mux.HandleFunc("POST /api/v1/trust", memory.CreateTrust)
+
+	mux.HandleFunc("POST /api/v1/scoped-memory/context", scoped.Context)
+	mux.HandleFunc("POST /api/v1/scoped-memory/notes", scoped.Notes)
+	mux.HandleFunc("POST /api/v1/scoped-memory/snapshots", scoped.CreateSnapshot)
+	mux.HandleFunc("GET /api/v1/scoped-memory/snapshots/{snapshot_id}", scoped.GetSnapshot)
+	mux.HandleFunc("GET /api/v1/scoped-memory/query", scoped.Query)
 
 	mux.HandleFunc("GET /api/v1/ops/namespaces", ops.ListNamespaceSummaries)
 	mux.HandleFunc("GET /api/v1/ops/clawbots", ops.ListClawbotSummaries)

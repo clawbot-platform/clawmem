@@ -16,20 +16,32 @@ import (
 )
 
 type FileStore struct {
-	root       string
-	recordsDir string
-	mu         sync.RWMutex
+	root             string
+	recordsDir       string
+	scopedRecordsDir string
+	scopedSnapsDir   string
+	mu               sync.RWMutex
 }
 
 func NewFileStore(root string) (*FileStore, error) {
 	cleanRoot := filepath.Clean(root)
 	recordsDir := filepath.Join(cleanRoot, "records")
+	scopedRecordsDir := filepath.Join(cleanRoot, "scoped-records")
+	scopedSnapsDir := filepath.Join(cleanRoot, "scoped-snapshots")
 	if err := os.MkdirAll(recordsDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create storage directories: %w", err)
 	}
+	if err := os.MkdirAll(scopedRecordsDir, 0o750); err != nil {
+		return nil, fmt.Errorf("create scoped record storage directory: %w", err)
+	}
+	if err := os.MkdirAll(scopedSnapsDir, 0o750); err != nil {
+		return nil, fmt.Errorf("create scoped snapshot storage directory: %w", err)
+	}
 	return &FileStore{
-		root:       cleanRoot,
-		recordsDir: recordsDir,
+		root:             cleanRoot,
+		recordsDir:       recordsDir,
+		scopedRecordsDir: scopedRecordsDir,
+		scopedSnapsDir:   scopedSnapsDir,
 	}, nil
 }
 

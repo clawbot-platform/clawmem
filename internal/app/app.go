@@ -30,6 +30,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	systemHandler := handlers.NewSystemHandler(deps.ReadyFn)
 	memoryHandler := handlers.NewMemoryHandler(deps.Memory, deps.Replay, deps.Trust)
+	scopedHandler := handlers.NewScopedMemoryHandler(deps.Scoped)
 	opsHandler := handlers.NewOpsHandler(deps.Ops)
 
 	return &App{
@@ -37,7 +38,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		logger: logger,
 		server: &http.Server{
 			Addr:              cfg.Addr,
-			Handler:           routes.New(systemHandler, memoryHandler, opsHandler, logger),
+			Handler:           routes.New(systemHandler, memoryHandler, scopedHandler, opsHandler, logger),
 			ReadHeaderTimeout: 5 * time.Second,
 		},
 	}, nil

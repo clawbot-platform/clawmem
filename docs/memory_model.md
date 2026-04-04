@@ -5,8 +5,48 @@
 1. raw memory
 2. trust projection
 3. replay projection
+4. scoped run/cycle/agent context memory
 
 This document explains the conceptual model behind those views.
+
+## Scoped run/cycle/agent memory
+
+For control-plane execution, `clawmem` also stores scoped memory records keyed by:
+
+- `repo_namespace`
+- `run_namespace`
+- `cycle_namespace`
+- `agent_namespace`
+
+The primary carry-forward classes are:
+
+- `prior_cycle_summaries`
+- `carry_forward_risks`
+- `unresolved_gaps`
+- `backlog_items`
+- `reviewer_notes`
+
+`POST /api/v1/scoped-memory/context` assembles a compact object from these classes so cycle execution can fetch context in one call.
+
+Scoped records also use a status model:
+
+- `open`
+- `resolved`
+- `superseded`
+- `archived`
+
+This enables week-run carry-forward behavior (for example, unresolved gaps or risks) while preserving clean transitions as work is resolved or superseded.
+
+## Snapshot references
+
+Scoped notes can create snapshot checkpoints. A snapshot stores:
+
+- namespace scope
+- summary and creator
+- referenced record ids and/or query criteria
+- optional manifest references
+
+Snapshots are exported by id and can be attached to run/cycle artifacts by the control plane.
 
 ## Raw memory
 

@@ -53,6 +53,8 @@ Current stage:
 - session notes
 - benchmark notes
 - generic historical context records
+- scoped run/cycle/agent context records for control-plane execution
+- scoped memory snapshots and run-level export manifests
 
 Each record is organized by a namespace model composed from:
 
@@ -63,6 +65,23 @@ Each record is organized by a namespace model composed from:
 - `memory_type`
 
 That keeps the service generic enough for any project, while still letting operators and downstream apps segment memory cleanly.
+
+For control-plane week-run workflows, `clawmem` also supports a scoped hierarchy:
+
+- `repo_namespace`
+- `run_namespace`
+- `cycle_namespace`
+- `agent_namespace`
+
+Typical compact carry-forward classes are:
+
+- `prior_cycle_summaries`
+- `carry_forward_risks`
+- `unresolved_gaps`
+- `backlog_items`
+- `reviewer_notes`
+- `working_context`
+- `memory_snapshot_reference`
 
 ## What this repository is for
 
@@ -94,6 +113,8 @@ This makes the repo suitable for:
 - distributed storage or retention pipelines
 
 Those remain platform- or application-level concerns.
+
+In particular, `clawmem` is context continuity storage. It is not the authoritative replay truth for scored outcomes. Authoritative deterministic outputs remain in control-plane artifacts and comparison records.
 ## Behavioral semantics
 
 `clawmem` does not treat every domain write path as a simple append-only memory stream.
@@ -135,6 +156,7 @@ curl http://127.0.0.1:8088/healthz
 curl http://127.0.0.1:8088/metrics
 curl http://127.0.0.1:8088/api/v1/memories
 curl http://127.0.0.1:8088/api/v1/ops/namespaces
+curl "http://127.0.0.1:8088/api/v1/scoped-memory/query?repo_namespace=ach-trust-lab&run_namespace=weekrun-2026-06-demo"
 ```
 
 Create a namespaced memory record:
@@ -155,6 +177,51 @@ curl -X POST http://127.0.0.1:8088/api/v1/memories \
     "retention_policy":"standard",
     "tags":["sample","context"]
   }'
+
+Fetch compact scoped carry-forward context for a cycle:
+
+```bash
+curl -X POST http://127.0.0.1:8088/api/v1/scoped-memory/context \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "namespace": {
+      "repo_namespace": "ach-trust-lab",
+      "run_namespace": "weekrun-2026-06-demo",
+      "cycle_namespace": "day-3",
+      "agent_namespace": "policy-tuning"
+    }
+  }'
+```
+
+Persist cycle notes and create a snapshot reference:
+
+```bash
+curl -X POST http://127.0.0.1:8088/api/v1/scoped-memory/notes \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "namespace": {
+      "repo_namespace": "ach-trust-lab",
+      "run_namespace": "weekrun-2026-06-demo",
+      "cycle_namespace": "day-3",
+      "agent_namespace": "daily-summary"
+    },
+    "input": {
+      "created_by": "week-runner",
+      "prior_cycle_summaries": ["day-3 checkpoint"],
+      "carry_forward_risks": ["descriptor drift"],
+      "unresolved_gaps": ["missing sender diversity signal"],
+      "reviewer_notes": ["confirm with fraud ops"],
+      "snapshot_summary": "day-3 memory checkpoint"
+    }
+  }'
+```
+
+Migration note for this upgrade:
+
+- no SQL migration is required (file-backed store)
+- new directories are created automatically on startup:
+  - `scoped-records/`
+  - `scoped-snapshots/`
 ```
 
 ## How to use this in any project
