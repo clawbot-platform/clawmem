@@ -12,9 +12,11 @@ import (
 )
 
 type ScopedMemoryManager interface {
+	GetRecord(context.Context, string) (scopedmemory.Record, error)
 	ListRecords(context.Context, scopedmemory.Query) (scopedmemory.QueryResult, error)
 	FetchCompactContext(context.Context, scopedmemory.Namespace) (scopedmemory.CompactContext, error)
 	PersistNotes(context.Context, scopedmemory.Namespace, scopedservice.PersistNotesInput) (scopedservice.PersistNotesResult, error)
+	UpdateRecordStatus(context.Context, string, scopedservice.UpdateRecordStatusInput) (scopedmemory.Record, error)
 	CreateSnapshot(context.Context, scopedservice.CreateSnapshotInput) (scopedmemory.Snapshot, error)
 	GetSnapshot(context.Context, string) (scopedmemory.Snapshot, error)
 	ListSnapshots(context.Context, scopedmemory.SnapshotQuery) (scopedmemory.SnapshotQueryResult, error)
@@ -137,12 +139,17 @@ func (h *ScopedMemoryHandler) GetSnapshot(w http.ResponseWriter, r *http.Request
 
 func (h *ScopedMemoryHandler) Query(w http.ResponseWriter, r *http.Request) {
 	query := scopedmemory.Query{
-		RepoNamespace:  strings.TrimSpace(r.URL.Query().Get("repo_namespace")),
-		RunNamespace:   strings.TrimSpace(r.URL.Query().Get("run_namespace")),
-		CycleNamespace: strings.TrimSpace(r.URL.Query().Get("cycle_namespace")),
-		AgentNamespace: strings.TrimSpace(r.URL.Query().Get("agent_namespace")),
-		MemoryClass:    scopedmemory.MemoryClass(strings.TrimSpace(r.URL.Query().Get("memory_class"))),
-		Status:         scopedmemory.Status(strings.TrimSpace(r.URL.Query().Get("status"))),
+		RepoNamespace:          strings.TrimSpace(r.URL.Query().Get("repo_namespace")),
+		RunNamespace:           strings.TrimSpace(r.URL.Query().Get("run_namespace")),
+		CycleNamespace:         strings.TrimSpace(r.URL.Query().Get("cycle_namespace")),
+		AgentNamespace:         strings.TrimSpace(r.URL.Query().Get("agent_namespace")),
+		MemoryClass:            scopedmemory.MemoryClass(strings.TrimSpace(r.URL.Query().Get("memory_class"))),
+		Status:                 scopedmemory.Status(strings.TrimSpace(r.URL.Query().Get("status"))),
+		SourceRunID:            strings.TrimSpace(r.URL.Query().Get("source_run_id")),
+		SourceCycleID:          strings.TrimSpace(r.URL.Query().Get("source_cycle_id")),
+		SourceArtifactID:       strings.TrimSpace(r.URL.Query().Get("source_artifact_id")),
+		SourcePolicyDecisionID: strings.TrimSpace(r.URL.Query().Get("source_policy_decision_id")),
+		SourceModelProfileID:   strings.TrimSpace(r.URL.Query().Get("source_model_profile_id")),
 	}
 
 	limit, offset, err := parsePagination(r)
@@ -197,4 +204,28 @@ func (h *ScopedMemoryHandler) Query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": result})
+}
+
+func (h *ScopedMemoryHandler) UpdateRecordStatus(w http.ResponseWriter, r *http.Request) {
+	recordID := strings.TrimSpace(r.PathValue("record_id"))
+	if recordID == "" {
+		writeError(w, http.StatusBadRequest, "record_id is required")
+		return
+	}
+
+	var input scopedservice.UpdateRecordStatusInput
+	if err := decodeJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	updated, err := h.scoped.UpdateRecordStatus(r.Context(), recordID, input)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": updated})
 }

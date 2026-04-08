@@ -127,6 +127,21 @@ func (s *FileStore) ListScopedRecords(_ context.Context, query scopedmemory.Quer
 		if query.Status != "" && scopedmemory.NormalizeStatus(record.Status) != query.Status {
 			continue
 		}
+		if query.SourceRunID != "" && strings.TrimSpace(record.SourceRunID) != query.SourceRunID {
+			continue
+		}
+		if query.SourceCycleID != "" && strings.TrimSpace(record.SourceCycleID) != query.SourceCycleID {
+			continue
+		}
+		if query.SourceArtifactID != "" && strings.TrimSpace(record.SourceArtifactID) != query.SourceArtifactID {
+			continue
+		}
+		if query.SourcePolicyDecisionID != "" && strings.TrimSpace(record.SourcePolicyDecisionID) != query.SourcePolicyDecisionID {
+			continue
+		}
+		if query.SourceModelProfileID != "" && strings.TrimSpace(record.SourceModelProfileID) != query.SourceModelProfileID {
+			continue
+		}
 		filtered = append(filtered, record)
 	}
 
@@ -338,6 +353,11 @@ func normalizeScopedRecord(record scopedmemory.Record) scopedmemory.Record {
 	}
 	record.ContentText = strings.TrimSpace(record.ContentText)
 	record.CreatedBy = strings.TrimSpace(record.CreatedBy)
+	record.SourceRunID = strings.TrimSpace(record.SourceRunID)
+	record.SourceCycleID = strings.TrimSpace(record.SourceCycleID)
+	record.SourceArtifactID = strings.TrimSpace(record.SourceArtifactID)
+	record.SourcePolicyDecisionID = strings.TrimSpace(record.SourcePolicyDecisionID)
+	record.SourceModelProfileID = strings.TrimSpace(record.SourceModelProfileID)
 	if record.CreatedBy == "" {
 		record.CreatedBy = "system"
 	}
@@ -367,6 +387,11 @@ func normalizeScopedSnapshot(snapshot scopedmemory.Snapshot) scopedmemory.Snapsh
 	if snapshot.MetadataJSON == nil {
 		snapshot.MetadataJSON = map[string]any{}
 	}
+	snapshot.ManifestChecksum = strings.TrimSpace(snapshot.ManifestChecksum)
+	if snapshot.ManifestChecksum == "" {
+		snapshot.ManifestChecksum = "legacy-" + strings.TrimSpace(snapshot.SnapshotID)
+	}
+	snapshot.PreviousSnapshotChecksum = strings.TrimSpace(snapshot.PreviousSnapshotChecksum)
 	snapshot.QueryCriteria = scopedmemory.NormalizeQuery(snapshot.QueryCriteria)
 	return snapshot
 }

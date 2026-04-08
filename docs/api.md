@@ -217,6 +217,14 @@ Common classes:
 - `working_context`
 - `memory_snapshot_reference`
 
+Provenance fields on records:
+
+- `source_run_id`
+- `source_cycle_id`
+- `source_artifact_id`
+- `source_policy_decision_id`
+- `source_model_profile_id`
+
 Status values:
 
 - `open`
@@ -233,6 +241,13 @@ Returns one compact object for pre-cycle execution context:
 - `unresolved_gaps`
 - `backlog_items`
 - `reviewer_notes`
+
+Assembly rules:
+
+- newest-first ordering
+- status priority (`open` before `resolved`, then `superseded`, then `archived` excluded)
+- scope preference (same cycle/agent first, then same cycle, then run-wide context)
+- class caps to keep payloads compact (bounded per class)
 
 Example:
 
@@ -274,8 +289,31 @@ Additional supported fields:
 - `input.metadata_json`
 - `input.provenance`
 - `input.created_by`
+- `input.source_run_id`
+- `input.source_cycle_id`
+- `input.source_artifact_id`
+- `input.source_policy_decision_id`
+- `input.source_model_profile_id`
 
 Response includes `data.snapshot_ref`.
+
+### `POST /api/v1/scoped-memory/records/{record_id}/status`
+
+Transitions actionable records between governance statuses.
+
+Request body:
+
+- `status`
+- `updated_by`
+- `reason`
+
+Only actionable classes support transitions:
+
+- `unresolved_gap`
+- `carry_forward_risk`
+- `backlog_item`
+- `reviewer_note`
+- `policy_exception`
 
 ### `POST /api/v1/scoped-memory/snapshots`
 
@@ -286,6 +324,11 @@ Creates an explicit snapshot checkpoint:
 - `record_refs` (optional, inferred from query when omitted)
 - `query_criteria` (optional)
 - `manifest_ref` (optional)
+
+Snapshot manifests include:
+
+- `manifest_checksum` (sha256 over manifest payload)
+- `previous_snapshot_checksum` (when prior snapshot exists in same scope)
 
 ### `GET /api/v1/scoped-memory/snapshots/{snapshot_id}`
 
@@ -316,7 +359,7 @@ Run export bundle:
 
 - add `export=run`
 - requires at least `repo_namespace` and `run_namespace`
-- returns records, snapshots, class/status counts, and manifest metadata
+- returns records, snapshots, class/status counts, and manifest metadata including snapshot checksum references
 
 ## Replay endpoints
 

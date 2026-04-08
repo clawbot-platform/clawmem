@@ -37,6 +37,9 @@ func TestScopedMemoryContextAndNotesFlow(t *testing.T) {
 	if !strings.Contains(notesRec.Body.String(), `"snapshot_ref":"sms-`) {
 		t.Fatalf("expected snapshot_ref in response body=%s", notesRec.Body.String())
 	}
+	if !strings.Contains(notesRec.Body.String(), `"manifest_checksum":"`) {
+		t.Fatalf("expected snapshot checksum in notes response body=%s", notesRec.Body.String())
+	}
 
 	ctxReq := httptest.NewRequest(http.MethodPost, "/api/v1/scoped-memory/context", strings.NewReader(`{
 		"namespace": {
@@ -129,6 +132,30 @@ func TestScopedMemorySnapshotAndQueryEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(queryRec.Body.String(), `"missing sender diversity signal"`) {
 		t.Fatalf("expected unresolved gap in query response body=%s", queryRec.Body.String())
+	}
+
+	var listPayload map[string]any
+	if err := json.Unmarshal(queryRec.Body.Bytes(), &listPayload); err != nil {
+		t.Fatalf("unmarshal query response: %v", err)
+	}
+	listData := listPayload["data"].(map[string]any)
+	records := listData["records"].([]any)
+	firstRecord := records[0].(map[string]any)
+	recordID := firstRecord["id"].(string)
+
+	updateReq := httptest.NewRequest(http.MethodPost, "/api/v1/scoped-memory/records/"+recordID+"/status", strings.NewReader(`{
+		"status":"resolved",
+		"updated_by":"reviewer",
+		"reason":"validated"
+	}`))
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateRec := httptest.NewRecorder()
+	router.ServeHTTP(updateRec, updateReq)
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for status update, got %d body=%s", updateRec.Code, updateRec.Body.String())
+	}
+	if !strings.Contains(updateRec.Body.String(), `"status":"resolved"`) {
+		t.Fatalf("expected resolved status in response body=%s", updateRec.Body.String())
 	}
 
 	exportRunReq := httptest.NewRequest(http.MethodGet, "/api/v1/scoped-memory/query?repo_namespace=ach-trust-lab&run_namespace=weekrun-2026-06-showcase&export=run", nil)

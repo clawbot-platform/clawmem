@@ -18,11 +18,15 @@ const (
 	MemoryClassUnresolvedGaps        MemoryClass = "unresolved_gaps"
 	MemoryClassBacklogItems          MemoryClass = "backlog_items"
 	MemoryClassReviewerNotes         MemoryClass = "reviewer_notes"
+	MemoryClassPolicyExceptions      MemoryClass = "policy_exceptions"
 	MemoryClassWorkingContext        MemoryClass = "working_context"
 	MemoryClassSnapshotReference     MemoryClass = "memory_snapshot_reference"
 	MemoryClassCycleSummariesAlias   MemoryClass = "cycle_summaries"
 	MemoryClassUnresolvedGapsAlias   MemoryClass = "unresolved_gap"
 	MemoryClassCarryForwardRiskAlias MemoryClass = "carry_forward_risk"
+	MemoryClassBacklogItemAlias      MemoryClass = "backlog_item"
+	MemoryClassReviewerNoteAlias     MemoryClass = "reviewer_note"
+	MemoryClassPolicyExceptionAlias  MemoryClass = "policy_exception"
 )
 
 const (
@@ -45,32 +49,42 @@ type Namespace struct {
 }
 
 type Record struct {
-	ID             string         `json:"id"`
-	RepoNamespace  string         `json:"repo_namespace"`
-	RunNamespace   string         `json:"run_namespace"`
-	CycleNamespace string         `json:"cycle_namespace,omitempty"`
-	AgentNamespace string         `json:"agent_namespace,omitempty"`
-	MemoryClass    MemoryClass    `json:"memory_class"`
-	Status         Status         `json:"status"`
-	ContentText    string         `json:"content_text"`
-	ContentJSON    map[string]any `json:"content_json,omitempty"`
-	MetadataJSON   map[string]any `json:"metadata_json,omitempty"`
-	CreatedBy      string         `json:"created_by"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	ResolvedAt     *time.Time     `json:"resolved_at,omitempty"`
-	ExpiresAt      *time.Time     `json:"expires_at,omitempty"`
+	ID                     string         `json:"id"`
+	RepoNamespace          string         `json:"repo_namespace"`
+	RunNamespace           string         `json:"run_namespace"`
+	CycleNamespace         string         `json:"cycle_namespace,omitempty"`
+	AgentNamespace         string         `json:"agent_namespace,omitempty"`
+	MemoryClass            MemoryClass    `json:"memory_class"`
+	Status                 Status         `json:"status"`
+	ContentText            string         `json:"content_text"`
+	ContentJSON            map[string]any `json:"content_json,omitempty"`
+	MetadataJSON           map[string]any `json:"metadata_json,omitempty"`
+	CreatedBy              string         `json:"created_by"`
+	CreatedAt              time.Time      `json:"created_at"`
+	UpdatedAt              time.Time      `json:"updated_at"`
+	ResolvedAt             *time.Time     `json:"resolved_at,omitempty"`
+	ExpiresAt              *time.Time     `json:"expires_at,omitempty"`
+	SourceRunID            string         `json:"source_run_id,omitempty"`
+	SourceCycleID          string         `json:"source_cycle_id,omitempty"`
+	SourceArtifactID       string         `json:"source_artifact_id,omitempty"`
+	SourcePolicyDecisionID string         `json:"source_policy_decision_id,omitempty"`
+	SourceModelProfileID   string         `json:"source_model_profile_id,omitempty"`
 }
 
 type Query struct {
-	RepoNamespace  string
-	RunNamespace   string
-	CycleNamespace string
-	AgentNamespace string
-	MemoryClass    MemoryClass
-	Status         Status
-	Limit          int
-	Offset         int
+	RepoNamespace          string
+	RunNamespace           string
+	CycleNamespace         string
+	AgentNamespace         string
+	MemoryClass            MemoryClass
+	Status                 Status
+	SourceRunID            string
+	SourceCycleID          string
+	SourceArtifactID       string
+	SourcePolicyDecisionID string
+	SourceModelProfileID   string
+	Limit                  int
+	Offset                 int
 }
 
 type QueryResult struct {
@@ -82,17 +96,19 @@ type QueryResult struct {
 }
 
 type Snapshot struct {
-	SnapshotID     string         `json:"snapshot_id"`
-	RepoNamespace  string         `json:"repo_namespace"`
-	RunNamespace   string         `json:"run_namespace"`
-	CycleNamespace string         `json:"cycle_namespace,omitempty"`
-	CreatedAt      time.Time      `json:"created_at"`
-	CreatedBy      string         `json:"created_by"`
-	Summary        string         `json:"summary"`
-	RecordRefs     []string       `json:"record_refs"`
-	QueryCriteria  Query          `json:"query_criteria"`
-	ManifestRef    string         `json:"manifest_ref,omitempty"`
-	MetadataJSON   map[string]any `json:"metadata_json,omitempty"`
+	SnapshotID               string         `json:"snapshot_id"`
+	RepoNamespace            string         `json:"repo_namespace"`
+	RunNamespace             string         `json:"run_namespace"`
+	CycleNamespace           string         `json:"cycle_namespace,omitempty"`
+	CreatedAt                time.Time      `json:"created_at"`
+	CreatedBy                string         `json:"created_by"`
+	Summary                  string         `json:"summary"`
+	RecordRefs               []string       `json:"record_refs"`
+	QueryCriteria            Query          `json:"query_criteria"`
+	ManifestRef              string         `json:"manifest_ref,omitempty"`
+	ManifestChecksum         string         `json:"manifest_checksum"`
+	PreviousSnapshotChecksum string         `json:"previous_snapshot_checksum,omitempty"`
+	MetadataJSON             map[string]any `json:"metadata_json,omitempty"`
 }
 
 type SnapshotQuery struct {
@@ -161,6 +177,11 @@ func NormalizeQuery(query Query) Query {
 	query.AgentNamespace = strings.TrimSpace(query.AgentNamespace)
 	query.MemoryClass = normalizeClass(query.MemoryClass)
 	query.Status = normalizeStatus(query.Status)
+	query.SourceRunID = strings.TrimSpace(query.SourceRunID)
+	query.SourceCycleID = strings.TrimSpace(query.SourceCycleID)
+	query.SourceArtifactID = strings.TrimSpace(query.SourceArtifactID)
+	query.SourcePolicyDecisionID = strings.TrimSpace(query.SourcePolicyDecisionID)
+	query.SourceModelProfileID = strings.TrimSpace(query.SourceModelProfileID)
 	if query.Limit <= 0 {
 		query.Limit = DefaultPageSize
 	}
@@ -244,6 +265,9 @@ func (s Snapshot) Validate() error {
 	if strings.TrimSpace(s.Summary) == "" {
 		return errors.New("summary is required")
 	}
+	if strings.TrimSpace(s.ManifestChecksum) == "" {
+		return errors.New("manifest_checksum is required")
+	}
 	return nil
 }
 
@@ -261,8 +285,14 @@ func normalizeClass(class MemoryClass) MemoryClass {
 		return MemoryClassUnresolvedGaps
 	case string(MemoryClassBacklogItems):
 		return MemoryClassBacklogItems
+	case string(MemoryClassBacklogItemAlias):
+		return MemoryClassBacklogItems
 	case string(MemoryClassReviewerNotes):
 		return MemoryClassReviewerNotes
+	case string(MemoryClassReviewerNoteAlias):
+		return MemoryClassReviewerNotes
+	case string(MemoryClassPolicyExceptions), string(MemoryClassPolicyExceptionAlias):
+		return MemoryClassPolicyExceptions
 	case string(MemoryClassWorkingContext):
 		return MemoryClassWorkingContext
 	case string(MemoryClassSnapshotReference):

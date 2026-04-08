@@ -3,6 +3,7 @@ package scopedmemory
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"clawmem/internal/platform/store"
 )
 
-func TestPersistNotesAndFetchCompactContext(t *testing.T) {
+func TestPersistNotesStoresProvenanceAndSupportsNamespaceSafeQuery(t *testing.T) {
 	t.Parallel()
 
 	fileStore, err := store.NewFileStore(t.TempDir())
@@ -19,69 +20,224 @@ func TestPersistNotesAndFetchCompactContext(t *testing.T) {
 	}
 
 	svc := NewService(fileStore)
-	now := time.Date(2026, 4, 4, 12, 0, 0, 0, time.UTC)
-	svc.now = func() time.Time { return now }
-	ids := []string{"smr-100", "smr-101", "smr-102", "smr-103", "smr-104", "smr-105", "smr-106", "smr-107"}
-	svc.recordIDGen = func() string {
-		id := ids[0]
-		ids = ids[1:]
-		return id
-	}
-	svc.snapshotIDGen = func() string { return "sms-100" }
+	svc.now = func() time.Time { return time.Date(2026, 4, 8, 9, 0, 0, 0, time.UTC) }
+	svc.recordIDGen = sequenceID("smr-prov")
+	svc.snapshotIDGen = sequenceID("sms-prov")
 
 	ns := domain.Namespace{
 		RepoNamespace:  "ach-trust-lab",
-		RunNamespace:   "weekrun-2026-06-demo",
+		RunNamespace:   "weekrun-2026-06-governance",
 		CycleNamespace: "day-1",
-		AgentNamespace: "daily-summary",
+		AgentNamespace: "feature-gap",
 	}
-	result, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
-		CreatedBy:           "week-runner",
-		PriorCycleSummaries: []string{"cycle summary day-1"},
-		CarryForwardRisks:   []string{"descriptor drift"},
-		UnresolvedGaps:      []string{"missing sender diversity"},
-		BacklogItems:        []string{"implement sender diversity feature"},
-		ReviewerNotes:       []string{"review with fraud ops"},
-		Note:                "cycle checkpoint",
-		SnapshotSummary:     "day-1 checkpoint",
-	})
-	if err != nil {
+	if _, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
+		CreatedBy:              "week-runner",
+		UnresolvedGaps:         []string{"missing sender diversity"},
+		SourceRunID:            "run-123",
+		SourceCycleID:          "cycle-001",
+		SourceArtifactID:       "artifact-abc",
+		SourcePolicyDecisionID: "policy-55",
+		SourceModelProfileID:   "ach-default",
+		SnapshotSummary:        "day-1 snapshot",
+	}); err != nil {
 		t.Fatalf("PersistNotes() error = %v", err)
 	}
-	if result.SnapshotRef != "sms-100" {
-		t.Fatalf("expected snapshot ref sms-100, got %s", result.SnapshotRef)
+
+	query, err := svc.ListRecords(context.Background(), domain.Query{
+		RepoNamespace: "ach-trust-lab",
+		RunNamespace:  "weekrun-2026-06-governance",
+		MemoryClass:   domain.MemoryClassUnresolvedGaps,
+		Limit:         20,
+	})
+	if err != nil {
+		t.Fatalf("ListRecords() error = %v", err)
 	}
-	if result.RecordsWritten < 6 {
-		t.Fatalf("expected multiple written records, got %#v", result)
+	if query.Total != 1 || len(query.Records) != 1 {
+		t.Fatalf("expected one unresolved gap record, got %#v", query)
+	}
+	record := query.Records[0]
+	if record.SourceRunID != "run-123" || record.SourceCycleID != "cycle-001" || record.SourceArtifactID != "artifact-abc" || record.SourcePolicyDecisionID != "policy-55" || record.SourceModelProfileID != "ach-default" {
+		t.Fatalf("expected provenance fields on record, got %#v", record)
+	}
+
+	provenanceQuery, err := svc.ListRecords(context.Background(), domain.Query{
+		RepoNamespace:    "ach-trust-lab",
+		RunNamespace:     "weekrun-2026-06-governance",
+		SourceArtifactID: "artifact-abc",
+		Limit:            20,
+	})
+	if err != nil {
+		t.Fatalf("ListRecords(provenance) error = %v", err)
+	}
+	if provenanceQuery.Total == 0 {
+		t.Fatalf("expected records for artifact provenance query, got %#v", provenanceQuery)
+	}
+
+	isolated, err := svc.ListRecords(context.Background(), domain.Query{
+		RepoNamespace: "ach-trust-lab",
+		RunNamespace:  "weekrun-other",
+		MemoryClass:   domain.MemoryClassUnresolvedGaps,
+		Limit:         20,
+	})
+	if err != nil {
+		t.Fatalf("ListRecords(namespace-safe) error = %v", err)
+	}
+	if isolated.Total != 0 {
+		t.Fatalf("expected namespace-safe isolation, got %#v", isolated)
+	}
+}
+
+func TestActionableStatusTransitions(t *testing.T) {
+	t.Parallel()
+
+	fileStore, err := store.NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("NewFileStore() error = %v", err)
+	}
+
+	svc := NewService(fileStore)
+	now := time.Date(2026, 4, 8, 10, 0, 0, 0, time.UTC)
+	svc.now = func() time.Time { return now }
+	svc.recordIDGen = sequenceID("smr-status")
+	svc.snapshotIDGen = sequenceID("sms-status")
+
+	ns := domain.Namespace{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-status", CycleNamespace: "day-2", AgentNamespace: "reviewer"}
+	if _, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
+		CreatedBy:      "reviewer",
+		ReviewerNotes:  []string{"note-a"},
+		UnresolvedGaps: []string{"gap-a"},
+		Note:           "working-context-entry",
+	}); err != nil {
+		t.Fatalf("PersistNotes() error = %v", err)
+	}
+
+	gaps, err := svc.ListRecords(context.Background(), domain.Query{
+		RepoNamespace: "ach-trust-lab",
+		RunNamespace:  "weekrun-status",
+		MemoryClass:   domain.MemoryClassUnresolvedGaps,
+		Status:        domain.StatusOpen,
+		Limit:         20,
+	})
+	if err != nil {
+		t.Fatalf("ListRecords() error = %v", err)
+	}
+	if gaps.Total != 1 {
+		t.Fatalf("expected one open gap, got %#v", gaps)
+	}
+
+	updated, err := svc.UpdateRecordStatus(context.Background(), gaps.Records[0].ID, UpdateRecordStatusInput{
+		Status:    domain.StatusResolved,
+		UpdatedBy: "reviewer",
+		Reason:    "validated by reviewer",
+	})
+	if err != nil {
+		t.Fatalf("UpdateRecordStatus(resolve) error = %v", err)
+	}
+	if updated.Status != domain.StatusResolved || updated.ResolvedAt == nil {
+		t.Fatalf("expected resolved record, got %#v", updated)
+	}
+
+	if _, err := svc.UpdateRecordStatus(context.Background(), updated.ID, UpdateRecordStatusInput{Status: domain.StatusOpen}); err == nil {
+		t.Fatal("expected invalid transition from resolved to open")
+	}
+
+	working, err := svc.ListRecords(context.Background(), domain.Query{
+		RepoNamespace: "ach-trust-lab",
+		RunNamespace:  "weekrun-status",
+		MemoryClass:   domain.MemoryClassWorkingContext,
+		Limit:         20,
+	})
+	if err != nil {
+		t.Fatalf("ListRecords(working_context) error = %v", err)
+	}
+	if len(working.Records) == 0 {
+		t.Fatalf("expected working_context record, got %#v", working)
+	}
+	if _, err := svc.UpdateRecordStatus(context.Background(), working.Records[0].ID, UpdateRecordStatusInput{Status: domain.StatusResolved}); err == nil {
+		t.Fatal("expected actionable-class status transition guard")
+	}
+}
+
+func TestCompactContextAssemblyOrderingAndCaps(t *testing.T) {
+	t.Parallel()
+
+	fileStore, err := store.NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("NewFileStore() error = %v", err)
+	}
+
+	svc := NewService(fileStore)
+	current := time.Date(2026, 4, 8, 11, 0, 0, 0, time.UTC)
+	svc.now = func() time.Time { return current }
+	svc.recordIDGen = sequenceID("smr-compact")
+	svc.snapshotIDGen = sequenceID("sms-compact")
+
+	ns := domain.Namespace{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-compact", CycleNamespace: "day-1", AgentNamespace: "daily-summary"}
+	for _, risk := range []string{"risk-a", "risk-b", "risk-c", "risk-d", "risk-e"} {
+		if _, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{CreatedBy: "runner", CarryForwardRisks: []string{risk}}); err != nil {
+			t.Fatalf("PersistNotes(%s) error = %v", risk, err)
+		}
+		current = current.Add(time.Minute)
+	}
+
+	risks, err := svc.ListRecords(context.Background(), domain.Query{
+		RepoNamespace: "ach-trust-lab",
+		RunNamespace:  "weekrun-compact",
+		MemoryClass:   domain.MemoryClassCarryForwardRisks,
+		Status:        domain.StatusOpen,
+		Limit:         20,
+	})
+	if err != nil {
+		t.Fatalf("ListRecords(risks) error = %v", err)
+	}
+	riskE := findRecordByText(risks.Records, "risk-e")
+	if riskE.ID == "" {
+		t.Fatalf("expected to find risk-e in %#v", risks)
+	}
+	if _, err := svc.UpdateRecordStatus(context.Background(), riskE.ID, UpdateRecordStatusInput{Status: domain.StatusResolved, UpdatedBy: "runner", Reason: "closed for cycle"}); err != nil {
+		t.Fatalf("UpdateRecordStatus(risk-e) error = %v", err)
+	}
+
+	for index := 1; index <= 9; index++ {
+		nsSummary := domain.Namespace{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-compact", CycleNamespace: fmt.Sprintf("day-%d", index), AgentNamespace: "daily-summary"}
+		if _, err := svc.PersistNotes(context.Background(), nsSummary, PersistNotesInput{CreatedBy: "runner", PriorCycleSummaries: []string{fmt.Sprintf("summary-%d", index)}}); err != nil {
+			t.Fatalf("PersistNotes(summary-%d) error = %v", index, err)
+		}
+		current = current.Add(time.Minute)
 	}
 
 	compact, err := svc.FetchCompactContext(context.Background(), domain.Namespace{
 		RepoNamespace:  "ach-trust-lab",
-		RunNamespace:   "weekrun-2026-06-demo",
-		CycleNamespace: "day-2",
+		RunNamespace:   "weekrun-compact",
+		CycleNamespace: "day-10",
 		AgentNamespace: "policy-tuning",
 	})
 	if err != nil {
 		t.Fatalf("FetchCompactContext() error = %v", err)
 	}
-	if len(compact.PriorCycleSummaries) != 1 || compact.PriorCycleSummaries[0] != "cycle summary day-1" {
-		t.Fatalf("unexpected prior cycle summaries %#v", compact.PriorCycleSummaries)
+
+	expectedRiskOrder := []string{"risk-d", "risk-c", "risk-b", "risk-a", "risk-e"}
+	if len(compact.CarryForwardRisks) != len(expectedRiskOrder) {
+		t.Fatalf("expected %d risk items, got %#v", len(expectedRiskOrder), compact.CarryForwardRisks)
 	}
-	if len(compact.CarryForwardRisks) != 1 || compact.CarryForwardRisks[0] != "descriptor drift" {
-		t.Fatalf("unexpected carry forward risks %#v", compact.CarryForwardRisks)
+	for index, expected := range expectedRiskOrder {
+		if compact.CarryForwardRisks[index] != expected {
+			t.Fatalf("expected risk order %v, got %v", expectedRiskOrder, compact.CarryForwardRisks)
+		}
 	}
-	if len(compact.UnresolvedGaps) != 1 || compact.UnresolvedGaps[0] != "missing sender diversity" {
-		t.Fatalf("unexpected unresolved gaps %#v", compact.UnresolvedGaps)
+
+	if len(compact.PriorCycleSummaries) != 7 {
+		t.Fatalf("expected prior summary cap of 7, got %#v", compact.PriorCycleSummaries)
 	}
-	if len(compact.BacklogItems) != 1 || compact.BacklogItems[0] != "implement sender diversity feature" {
-		t.Fatalf("unexpected backlog items %#v", compact.BacklogItems)
-	}
-	if len(compact.ReviewerNotes) != 1 || compact.ReviewerNotes[0] != "review with fraud ops" {
-		t.Fatalf("unexpected reviewer notes %#v", compact.ReviewerNotes)
+	expectedSummaryHead := []string{"summary-9", "summary-8", "summary-7"}
+	for index, expected := range expectedSummaryHead {
+		if compact.PriorCycleSummaries[index] != expected {
+			t.Fatalf("expected newest-first summaries starting with %v, got %v", expectedSummaryHead, compact.PriorCycleSummaries)
+		}
 	}
 }
 
-func TestUnresolvedGapUpsertAndResolve(t *testing.T) {
+func TestSnapshotManifestChecksumsAndExport(t *testing.T) {
 	t.Parallel()
 
 	fileStore, err := store.NewFileStore(t.TempDir())
@@ -90,122 +246,75 @@ func TestUnresolvedGapUpsertAndResolve(t *testing.T) {
 	}
 
 	svc := NewService(fileStore)
-	now := time.Date(2026, 4, 4, 13, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 4, 8, 15, 0, 0, 0, time.UTC)
 	svc.now = func() time.Time { return now }
-	idCounter := 0
-	svc.recordIDGen = func() string {
-		idCounter++
-		return "smr-upsert-" + string(rune('0'+idCounter))
-	}
-	snapshotCounter := 0
-	svc.snapshotIDGen = func() string {
-		snapshotCounter++
-		return fmt.Sprintf("sms-upsert-%d", snapshotCounter)
-	}
+	svc.recordIDGen = sequenceID("smr-snap")
+	svc.snapshotIDGen = sequenceID("sms-snap")
 
-	ns := domain.Namespace{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-upsert", CycleNamespace: "day-3", AgentNamespace: "feature-gap"}
-	if _, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
-		CreatedBy:      "runner",
-		UnresolvedGaps: []string{"gap-a"},
-	}); err != nil {
+	ns := domain.Namespace{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-snapshot", CycleNamespace: "day-5", AgentNamespace: "ops-playbooks"}
+	first, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
+		CreatedBy:       "runner",
+		BacklogItems:    []string{"publish playbook"},
+		SnapshotSummary: "snapshot-one",
+	})
+	if err != nil {
 		t.Fatalf("PersistNotes(first) error = %v", err)
 	}
-	if _, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
-		CreatedBy:      "runner",
-		UnresolvedGaps: []string{"gap-a"},
-	}); err != nil {
+	now = now.Add(2 * time.Minute)
+	second, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
+		CreatedBy:       "runner",
+		ReviewerNotes:   []string{"approve with edits"},
+		SnapshotSummary: "snapshot-two",
+	})
+	if err != nil {
 		t.Fatalf("PersistNotes(second) error = %v", err)
 	}
 
-	query, err := svc.ListRecords(context.Background(), domain.Query{
-		RepoNamespace: "ach-trust-lab",
-		RunNamespace:  "weekrun-upsert",
-		MemoryClass:   domain.MemoryClassUnresolvedGaps,
-		Status:        domain.StatusOpen,
-		Limit:         50,
-	})
-	if err != nil {
-		t.Fatalf("ListRecords() error = %v", err)
+	hexPattern := regexp.MustCompile(`^[a-f0-9]{64}$`)
+	if !hexPattern.MatchString(first.Snapshot.ManifestChecksum) {
+		t.Fatalf("expected sha256 manifest checksum, got %q", first.Snapshot.ManifestChecksum)
 	}
-	if query.Total != 1 {
-		t.Fatalf("expected upserted single unresolved gap, got %#v", query)
+	if !hexPattern.MatchString(second.Snapshot.ManifestChecksum) {
+		t.Fatalf("expected sha256 manifest checksum, got %q", second.Snapshot.ManifestChecksum)
+	}
+	if second.Snapshot.PreviousSnapshotChecksum != first.Snapshot.ManifestChecksum {
+		t.Fatalf("expected checksum chaining, got prev=%q first=%q", second.Snapshot.PreviousSnapshotChecksum, first.Snapshot.ManifestChecksum)
 	}
 
-	if _, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
-		CreatedBy:             "runner",
-		ResolveUnresolvedGaps: []string{"gap-a"},
-	}); err != nil {
-		t.Fatalf("PersistNotes(resolve) error = %v", err)
-	}
-
-	openResult, err := svc.ListRecords(context.Background(), domain.Query{
-		RepoNamespace: "ach-trust-lab",
-		RunNamespace:  "weekrun-upsert",
-		MemoryClass:   domain.MemoryClassUnresolvedGaps,
-		Status:        domain.StatusOpen,
-		Limit:         50,
-	})
-	if err != nil {
-		t.Fatalf("ListRecords(open) error = %v", err)
-	}
-	if openResult.Total != 0 {
-		t.Fatalf("expected no open unresolved gaps after resolve, got %#v", openResult)
-	}
-}
-
-func TestExportRunAndSnapshot(t *testing.T) {
-	t.Parallel()
-
-	fileStore, err := store.NewFileStore(t.TempDir())
-	if err != nil {
-		t.Fatalf("NewFileStore() error = %v", err)
-	}
-
-	svc := NewService(fileStore)
-	now := time.Date(2026, 4, 4, 16, 0, 0, 0, time.UTC)
-	svc.now = func() time.Time { return now }
-	recordIDs := []string{"smr-201", "smr-202", "smr-203", "smr-204"}
-	svc.recordIDGen = func() string {
-		id := recordIDs[0]
-		recordIDs = recordIDs[1:]
-		return id
-	}
-	svc.snapshotIDGen = func() string { return "sms-201" }
-
-	ns := domain.Namespace{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-export", CycleNamespace: "day-4", AgentNamespace: "ops-playbooks"}
-	persist, err := svc.PersistNotes(context.Background(), ns, PersistNotesInput{
-		CreatedBy:           "week-runner",
-		BacklogItems:        []string{"publish ops playbook"},
-		ReviewerNotes:       []string{"approve for dry run"},
-		SnapshotSummary:     "day-4 snapshot",
-		SnapshotManifestRef: "artifact://memory/day-4.json",
-	})
-	if err != nil {
-		t.Fatalf("PersistNotes() error = %v", err)
-	}
-	if persist.SnapshotRef == "" {
-		t.Fatalf("expected snapshot ref, got %#v", persist)
-	}
-
-	export, err := svc.ExportRun(context.Background(), domain.Namespace{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-export"})
-	if err != nil {
-		t.Fatalf("ExportRun() error = %v", err)
-	}
-	if export.Manifest["record_count"] == nil {
-		t.Fatalf("expected manifest record_count, got %#v", export.Manifest)
-	}
-	if export.ClassCounts[string(domain.MemoryClassBacklogItems)] == 0 {
-		t.Fatalf("expected backlog class count in export, got %#v", export.ClassCounts)
-	}
-
-	snapshotExport, err := svc.ExportSnapshot(context.Background(), persist.SnapshotRef)
+	snapshotExport, err := svc.ExportSnapshot(context.Background(), second.SnapshotRef)
 	if err != nil {
 		t.Fatalf("ExportSnapshot() error = %v", err)
 	}
-	if snapshotExport.Snapshot.SnapshotID != persist.SnapshotRef {
-		t.Fatalf("expected snapshot id %s, got %#v", persist.SnapshotRef, snapshotExport.Snapshot)
+	if snapshotExport.Snapshot.ManifestChecksum == "" {
+		t.Fatalf("expected checksum in snapshot export, got %#v", snapshotExport.Snapshot)
 	}
 	if len(snapshotExport.Records) == 0 {
-		t.Fatalf("expected snapshot records, got %#v", snapshotExport)
+		t.Fatalf("expected snapshot export records, got %#v", snapshotExport)
 	}
+
+	runExport, err := svc.ExportRun(context.Background(), domain.Namespace{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-snapshot"})
+	if err != nil {
+		t.Fatalf("ExportRun() error = %v", err)
+	}
+	latest, _ := runExport.Manifest["latest_snapshot_checksum"].(string)
+	if latest != second.Snapshot.ManifestChecksum {
+		t.Fatalf("expected latest snapshot checksum %q, got %#v", second.Snapshot.ManifestChecksum, runExport.Manifest)
+	}
+}
+
+func sequenceID(prefix string) func() string {
+	counter := 0
+	return func() string {
+		counter++
+		return fmt.Sprintf("%s-%03d", prefix, counter)
+	}
+}
+
+func findRecordByText(records []domain.Record, text string) domain.Record {
+	for _, record := range records {
+		if record.ContentText == text {
+			return record
+		}
+	}
+	return domain.Record{}
 }

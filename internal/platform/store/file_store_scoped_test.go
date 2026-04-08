@@ -17,17 +17,22 @@ func TestFileStoreScopedRecordCreateListUpdate(t *testing.T) {
 	}
 
 	record := scopedmemory.Record{
-		ID:             "smr-001",
-		RepoNamespace:  "ach-trust-lab",
-		RunNamespace:   "weekrun-2026-06-demo",
-		CycleNamespace: "day-1",
-		AgentNamespace: "feature-gap",
-		MemoryClass:    scopedmemory.MemoryClassUnresolvedGaps,
-		Status:         scopedmemory.StatusOpen,
-		ContentText:    "missing sender diversity signal",
-		CreatedBy:      "cycle-runner",
-		CreatedAt:      time.Date(2026, 4, 4, 14, 0, 0, 0, time.UTC),
-		UpdatedAt:      time.Date(2026, 4, 4, 14, 0, 0, 0, time.UTC),
+		ID:                     "smr-001",
+		RepoNamespace:          "ach-trust-lab",
+		RunNamespace:           "weekrun-2026-06-demo",
+		CycleNamespace:         "day-1",
+		AgentNamespace:         "feature-gap",
+		MemoryClass:            scopedmemory.MemoryClassUnresolvedGaps,
+		Status:                 scopedmemory.StatusOpen,
+		ContentText:            "missing sender diversity signal",
+		CreatedBy:              "cycle-runner",
+		CreatedAt:              time.Date(2026, 4, 4, 14, 0, 0, 0, time.UTC),
+		UpdatedAt:              time.Date(2026, 4, 4, 14, 0, 0, 0, time.UTC),
+		SourceRunID:            "run-1",
+		SourceCycleID:          "cycle-1",
+		SourceArtifactID:       "artifact-1",
+		SourcePolicyDecisionID: "policy-1",
+		SourceModelProfileID:   "ach-default",
 	}
 
 	created, err := fileStore.CreateScopedRecord(context.Background(), record)
@@ -50,6 +55,18 @@ func TestFileStoreScopedRecordCreateListUpdate(t *testing.T) {
 	}
 	if result.Total != 1 || len(result.Records) != 1 {
 		t.Fatalf("expected one record, got %#v", result)
+	}
+	filteredByProvenance, err := fileStore.ListScopedRecords(context.Background(), scopedmemory.Query{
+		RepoNamespace:    "ach-trust-lab",
+		RunNamespace:     "weekrun-2026-06-demo",
+		SourceArtifactID: "artifact-1",
+		Limit:            10,
+	})
+	if err != nil {
+		t.Fatalf("ListScopedRecords(provenance) error = %v", err)
+	}
+	if filteredByProvenance.Total != 1 {
+		t.Fatalf("expected one provenance-filtered record, got %#v", filteredByProvenance)
 	}
 
 	stored, err := fileStore.GetScopedRecord(context.Background(), record.ID)
@@ -93,14 +110,15 @@ func TestFileStoreScopedSnapshotCreateGetList(t *testing.T) {
 	}
 
 	snapshot := scopedmemory.Snapshot{
-		SnapshotID:    "sms-010",
-		RepoNamespace: "ach-trust-lab",
-		RunNamespace:  "weekrun-2026-06-demo",
-		CreatedAt:     time.Date(2026, 4, 4, 9, 15, 0, 0, time.UTC),
-		CreatedBy:     "cycle-runner",
-		Summary:       "cycle snapshot",
-		RecordRefs:    []string{"smr-010"},
-		QueryCriteria: scopedmemory.Query{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-2026-06-demo"},
+		SnapshotID:       "sms-010",
+		RepoNamespace:    "ach-trust-lab",
+		RunNamespace:     "weekrun-2026-06-demo",
+		CreatedAt:        time.Date(2026, 4, 4, 9, 15, 0, 0, time.UTC),
+		CreatedBy:        "cycle-runner",
+		Summary:          "cycle snapshot",
+		RecordRefs:       []string{"smr-010"},
+		QueryCriteria:    scopedmemory.Query{RepoNamespace: "ach-trust-lab", RunNamespace: "weekrun-2026-06-demo"},
+		ManifestChecksum: "abc123",
 	}
 	created, err := fileStore.CreateScopedSnapshot(context.Background(), snapshot)
 	if err != nil {

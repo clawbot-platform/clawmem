@@ -37,6 +37,28 @@ Scoped records also use a status model:
 
 This enables week-run carry-forward behavior (for example, unresolved gaps or risks) while preserving clean transitions as work is resolved or superseded.
 
+Actionable status transitions are intended for:
+
+- `unresolved_gap`
+- `carry_forward_risk`
+- `backlog_item`
+- `reviewer_note`
+- `policy_exception`
+
+Non-actionable classes (for example `working_context`) are stored as continuity context and are not expected to use governance transition workflows.
+
+## Provenance model
+
+Scoped records can carry provenance links:
+
+- `source_run_id`
+- `source_cycle_id`
+- `source_artifact_id`
+- `source_policy_decision_id`
+- `source_model_profile_id`
+
+These links preserve attribution across snapshot creation and run/snapshot exports.
+
 ## Snapshot references
 
 Scoped notes can create snapshot checkpoints. A snapshot stores:
@@ -47,6 +69,13 @@ Scoped notes can create snapshot checkpoints. A snapshot stores:
 - optional manifest references
 
 Snapshots are exported by id and can be attached to run/cycle artifacts by the control plane.
+
+Snapshot manifests include:
+
+- `manifest_checksum` (sha256 hash of the manifest payload)
+- `previous_snapshot_checksum` (when a prior snapshot exists in the same scope)
+
+This provides an auditable chain suitable for governance and review workflows.
 
 ## Raw memory
 

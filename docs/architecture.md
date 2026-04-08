@@ -14,6 +14,7 @@ The repository is currently at V2:
 - persist replay-case summaries
 - persist trust or control-artifact summaries
 - persist scoped run/cycle/agent memory records and snapshots
+- persist provenance-rich scoped records and checksumed snapshot manifests
 - expose a stable API for downstream callers that need lightweight memory or replay history
 - expose summary and maintenance endpoints so operators can inspect lifecycle state without a heavyweight dashboard
 
@@ -34,8 +35,9 @@ Platform or application layers own those concerns. `clawmem` stays focused on st
 1. `cmd/clawmem` loads env config and builds the app.
 2. `internal/platform/bootstrap` creates the file store plus memory, replay, trust, and ops services.
 3. scoped-memory service methods assemble compact cycle context, write scoped notes, and manage snapshots for control-plane callers.
-4. If enabled and the store is empty, seed records are loaded from `configs/memory/seed-memory.json`.
-5. `internal/http/routes` exposes versioned APIs for generic memory, replay/trust, scoped memory, and ops visibility.
+4. compact context assembly applies bounded class caps, scope preference, and status-priority ordering for inference-safe payload size.
+5. If enabled and the store is empty, seed records are loaded from `configs/memory/seed-memory.json`.
+6. `internal/http/routes` exposes versioned APIs for generic memory, replay/trust, scoped memory, scoped status updates, and ops visibility.
 
 ## Storage model
 

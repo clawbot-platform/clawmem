@@ -56,7 +56,20 @@ Snapshots include:
 
 Endpoints support create/get/list/export so run/cycle artifacts can link immutable memory references.
 
-### 5. Memory remains context continuity, not scored truth
+Snapshot manifests now include `manifest_checksum` plus optional `previous_snapshot_checksum` to support audit-friendly chaining.
+
+### 5. Records carry provenance for governance
+
+Scoped records can include:
+
+- `source_run_id`
+- `source_cycle_id`
+- `source_artifact_id`
+- `source_policy_decision_id`
+- `source_model_profile_id`
+
+This preserves attribution across compact context retrieval and exports.
+### 6. Memory remains context continuity, not scored truth
 
 Scoped memory enriches execution context and continuity. It does not replace deterministic replay authority. Authoritative scored outputs remain in run artifacts, comparisons, and review decisions managed by the control plane.
 

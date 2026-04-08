@@ -83,6 +83,19 @@ Typical compact carry-forward classes are:
 - `working_context`
 - `memory_snapshot_reference`
 
+Governance provenance fields on scoped records include:
+
+- `source_run_id`
+- `source_cycle_id`
+- `source_artifact_id`
+- `source_policy_decision_id`
+- `source_model_profile_id`
+
+Actionable classes support lifecycle status transitions:
+
+- actionable classes: `unresolved_gap`, `carry_forward_risk`, `backlog_item`, `reviewer_note`, `policy_exception`
+- statuses: `open`, `resolved`, `superseded`, `archived`
+
 ## What this repository is for
 
 Use `clawmem` when you need:
@@ -213,6 +226,18 @@ curl -X POST http://127.0.0.1:8088/api/v1/scoped-memory/notes \
       "reviewer_notes": ["confirm with fraud ops"],
       "snapshot_summary": "day-3 memory checkpoint"
     }
+  }'
+```
+
+Update status for an actionable scoped record:
+
+```bash
+curl -X POST http://127.0.0.1:8088/api/v1/scoped-memory/records/<record_id>/status \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "status": "resolved",
+    "updated_by": "reviewer",
+    "reason": "validated in cycle review"
   }'
 ```
 

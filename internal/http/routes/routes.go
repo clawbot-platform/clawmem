@@ -29,6 +29,7 @@ func New(system *handlers.SystemHandler, memory *handlers.MemoryHandler, scoped 
 
 	mux.HandleFunc("POST /api/v1/scoped-memory/context", scoped.Context)
 	mux.HandleFunc("POST /api/v1/scoped-memory/notes", scoped.Notes)
+	mux.HandleFunc("POST /api/v1/scoped-memory/records/{record_id}/status", scoped.UpdateRecordStatus)
 	mux.HandleFunc("POST /api/v1/scoped-memory/snapshots", scoped.CreateSnapshot)
 	mux.HandleFunc("GET /api/v1/scoped-memory/snapshots/{snapshot_id}", scoped.GetSnapshot)
 	mux.HandleFunc("GET /api/v1/scoped-memory/query", scoped.Query)
