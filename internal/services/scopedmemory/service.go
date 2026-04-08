@@ -151,9 +151,10 @@ func (s *Service) UpdateRecordStatus(ctx context.Context, recordID string, input
 	now := s.now()
 	record.Status = target
 	record.UpdatedAt = now
-	if target == domain.StatusResolved {
+	switch target {
+	case domain.StatusResolved:
 		record.ResolvedAt = &now
-	} else if target == domain.StatusOpen {
+	case domain.StatusOpen:
 		record.ResolvedAt = nil
 	}
 	record.MetadataJSON = mergeMap(record.MetadataJSON, map[string]any{
