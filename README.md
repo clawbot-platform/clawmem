@@ -20,16 +20,16 @@ It is part of the broader `clawbot-platform` organization, but it is not tied to
 
 - image: `ghcr.io/clawbot-platform/clawmem`
 - immutable tag pattern: `sha-<12-char-sha>`
-- operational tag examples:
-  - `drq-v1-baseline-20260329`
-  - `drq-v1-tuned-20260401`
+- release tags for this cycle:
+  - `v2.0.0` (exact release)
+  - `v2` (major stream)
 
 Runtime hosts should pull published images instead of building locally. They do not need Go, npm, or other development tooling just to deploy `clawmem`.
 
-Publish from GitHub Actions with the `publish-image` workflow and a `release_tag` input such as:
+Release publishing paths:
 
-- `drq-v1-baseline-20260329`
-- `drq-v1-tuned-20260401`
+- push a git tag like `v2.0.0` to trigger `publish-image`
+- or run `publish-image` manually with `release_tag=v2.0.0`
 
 If an older manually pushed GHCR package already exists and is not linked to this repository, fix that first:
 
@@ -38,6 +38,11 @@ If an older manually pushed GHCR package already exists and is not linked to thi
 - publish once to a temporary image name if cleanup has to be staged
 
 Avoid PAT-based publishing workarounds. The publish workflow uses the repository `GITHUB_TOKEN`.
+
+Release packaging docs:
+
+- `docs/releases/v2.0.0.md`
+- `docs/releases/UPGRADE_TO_V2.md`
 
 Current stage:
 
@@ -160,6 +165,19 @@ For the current DRQ workflow, replay promotion is primarily coordinated by `claw
 ```bash
 cp .env.example .env
 go run ./cmd/clawmem
+```
+
+Run the released image directly:
+
+```bash
+docker run -d --name clawmem \
+  -p 127.0.0.1:8088:8088 \
+  -v "$(pwd)/var/clawmem:/data/clawmem" \
+  -e CLAWMEM_ADDR=0.0.0.0:8088 \
+  -e CLAWMEM_STORAGE_PATH=/data/clawmem \
+  -e CLAWMEM_SEED_PATH=/app/configs/memory/seed-memory.json \
+  -e CLAWMEM_SEED_ON_STARTUP=true \
+  ghcr.io/clawbot-platform/clawmem:v2.0.0
 ```
 
 Validate the service:

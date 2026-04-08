@@ -4,9 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Release tag to publish, for example drq-v1-baseline-20260329
-        required: true
+        description: Release tag to publish (for example v2.0.0). If empty on manual runs, git describe is used.
+        required: false
         type: string
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
@@ -19,6 +22,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Validate release candidate
+        run: go test ./...
 
       - uses: docker/setup-qemu-action@v3
 
@@ -33,9 +44,28 @@ jobs:
       - name: Compute build metadata
         id: meta
         run: |
+          release_tag="${{ inputs.release_tag }}"
+          if [ -z "$release_tag" ]; then
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              release_tag="${GITHUB_REF_NAME}"
+            else
+              release_tag="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+            fi
+          fi
           echo "short_sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
           echo "build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
-          echo "version=$(git describe --tags --always --dirty 2>/dev/null || echo '${{ inputs.release_tag }}')" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${release_tag}" >> "$GITHUB_OUTPUT"
+          tags="ghcr.io/clawbot-platform/clawmem:sha-$(git rev-parse --short=12 HEAD)"
+          tags="${tags}"$'\n'"ghcr.io/clawbot-platform/clawmem:${release_tag}"
+          if echo "${release_tag}" | grep -Eq '^v[0-9]+(\.[0-9]+){0,2}$'; then
+            major_tag="$(echo "${release_tag}" | sed -E 's/^(v[0-9]+).*/\1/')"
+            tags="${tags}"$'\n'"ghcr.io/clawbot-platform/clawmem:${major_tag}"
+            echo "major_tag=${major_tag}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tags<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${tags}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
         with:
@@ -43,9 +73,7 @@ jobs:
           file: deploy/docker/clawmem.Dockerfile
           platforms: linux/amd64
           push: true
-          tags: |
-            ghcr.io/clawbot-platform/clawmem:sha-${{ steps.meta.outputs.short_sha }}
-            ghcr.io/clawbot-platform/clawmem:${{ inputs.release_tag }}
+          tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
             COMMIT=${{ github.sha }}
@@ -55,5 +83,20 @@ jobs:
             org.opencontainers.image.description=Reusable Go-first memory, replay, and historical context service.
             org.opencontainers.image.licenses=Apache-2.0
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ inputs.release_tag }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.release_tag }}
             org.opencontainers.image.created=${{ steps.meta.outputs.build_date }}
+
+      - name: Publish summary
+        run: |
+          {
+            echo "## Published clawmem image"
+            echo
+            echo "- Release tag: \`${{ steps.meta.outputs.release_tag }}\`"
+            echo "- Short SHA: \`${{ steps.meta.outputs.short_sha }}\`"
+            echo "- Tags:"
+            while IFS= read -r tag; do
+              [ -n "$tag" ] && echo "  - \`$tag\`"
+            done <<'EOF'
+          ${{ steps.meta.outputs.tags }}
+          EOF
+          } >> "$GITHUB_STEP_SUMMARY"

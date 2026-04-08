@@ -1,7 +1,7 @@
 SHELL := /bin/zsh
 
 COVERAGE_FILE := coverage.out
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+VERSION ?= $(shell (test -f VERSION && cat VERSION) || (git describe --tags --always --dirty 2>/dev/null || echo dev))
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -X 'clawmem/internal/version.Version=$(VERSION)' \
